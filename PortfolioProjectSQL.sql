@@ -1,16 +1,16 @@
 -- Select Data that are being used
 
-select *
+Select *
 from dbo.CovidDeaths
 where continent is not null
 order by location
 
-select *
+Select *
 from dbo.covidvaccination
 where continent is not null
 order by 3,4
 
-select location,date,total_cases,new_cases,total_deaths, population
+Select location,date,total_cases,new_cases,total_deaths, population
 from dbo.coviddeaths
 order by 1,2 
 
@@ -73,7 +73,7 @@ Select *
  
  --Total Population VS People Vaccinated
 
- select cd.continent, cd.location,cd.date, cd.population, vc.new_vaccinations, SUM(CONVERT(int, vc.new_vaccinations))
+ Select cd.continent, cd.location,cd.date, cd.population, vc.new_vaccinations, SUM(CONVERT(int, vc.new_vaccinations))
  OVER (PARTITION BY CD.location order by cd.location, cd.date) as PeopleVaccinated
  from dbo.CovidDeaths cd
  join dbo.CovidVaccination vc
@@ -81,6 +81,47 @@ Select *
  and cd.date = vc.date
   where cd.continent is not null 
  order by 2,3
+
+
+--Temp Table to perfom Calculation on Partition By
+
+Drop Table if exists #PercentPopulationVaccinated
+Create Table #PercentPopulationVaccinated
+(
+continent nvarchar(255),
+location nvarchar(255),
+Date datetime,
+Population numeric,
+New_vaccinations numeric,
+PeopleVaccinated numeric
+)
+Insert into #PercentPopulationVaccinated
+Select cd.continent, cd.location, cd.date, cd.population, vc.new_vaccinations, sum(convert(bigint,vc.new_vaccinations)) 
+over (Partition by cd.location order by cd.location, cd.date) as PeopleVaccinated
+from dbo.coviddeaths cd
+join dbo.covidvaccination vc
+on cd.location=vc.location
+ and cd.date=vc.date
+ where cd.continent is not null
+
+ select *, (PeopleVaccinated/Population)*100 as PercentofVaccinated
+ from #PercentPopulationVaccinated
+
+ --Using CTE to perform Calculation
+
+ With PopulationVsVaccinated (Continent, Location, Date, Population, New_Vaccinations, PeopleVaccinated)
+ as 
+ (
+ Select cd.continent, cd.location, cd.date, cd.population, vc.new_vaccinations, sum(convert(bigint,vc.new_vaccinations)) 
+over (Partition by cd.location order by cd.location, cd.date) as PeopleVaccinated
+from dbo.coviddeaths cd
+join dbo.covidvaccination vc
+on cd.location=vc.location
+ and cd.date=vc.date
+ where cd.continent is not null
+)
+Select *, (PeopleVaccinated/Population)*100 as PercentofVaccinated
+From PopulationVsVaccinated
 
  --Create View for Visualization
 
